@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	im, err := gg.LoadImage("./2.png")
+	im, err := gg.LoadImage("./Images/2.jpg")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -16,18 +16,18 @@ func main() {
 	S := float64(b.Max.X)
 	H := float64(b.Max.Y)
 
-	dc := gg.NewContext(int(S), int(H)+200)
+	dc := gg.NewContext(int(S), int(H)+700)
 	dc.SetRGB(1, 1, 1)
 	dc.Clear()
 	dc.SetRGB(0, 0, 0)
-	if err := dc.LoadFontFace("./Roboto-Regular.ttf", 30); err != nil {
+	if err := dc.LoadFontFace("./Fonts/Times New Roman.ttf", 180); err != nil {
 		panic(err)
 	}
 	dc.DrawRoundedRectangle(0, 0, S, H, 0)
 	dc.DrawImage(im, 0, 0)
-	dc.DrawStringAnchored("Wow this is great", S/2, H+50, 0.5, 0.5)
-	dc.DrawStringAnchored("13500 CHF", S/2, H+100, 0.5, 0.5)
+	dc.DrawStringAnchored("Ref.2430  Dia. 3.43 ct, Ruby 2 ct", S/2, H+170, 0.5, 0.5)
+	dc.DrawStringAnchored("13500  CHF", S/2, H+400, 0.5, 0.5)
 
 	dc.Clip()
-	dc.SavePNG("out1.png")
+	dc.SavePNG("1.jpg")
 }
