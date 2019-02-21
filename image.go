@@ -9,12 +9,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"github.com/fogleman/gg"
 )
 
 type record struct {
 	Description string
 	Price       string
-	imagePath   string
+	imageName   string
 }
 
 func readCsv(fileName string) []record {
@@ -36,12 +39,50 @@ func readCsv(fileName string) []record {
 		r := record{
 			Description: line[0],
 			Price:       line[1],
-			imagePath:   line[2],
+			imageName:   line[2],
 		}
 		records = append(records, r)
 	}
 	return records
 }
+
+func processImage(data record) {
+	defer wg.Done()
+	lock <- 1
+	log.Printf("Processing %v with description %v and price %v", data.imageName, data.Description, data.Price)
+	<-lock
+	im, err := gg.LoadImage("./Images/" + data.imageName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b := im.Bounds()
+
+	S := float64(b.Max.X)
+	H := float64(b.Max.Y)
+
+	dc := gg.NewContext(int(S), int(H)+700)
+	dc.SetRGB(1, 1, 1)
+	dc.Clear()
+	dc.SetRGB(0, 0, 0)
+	if err := dc.LoadFontFace("./Fonts/Times New Roman.ttf", 180); err != nil {
+		panic(err)
+	}
+	dc.DrawRoundedRectangle(0, 0, S, H, 0)
+	dc.DrawImage(im, 0, 0)
+	dc.DrawStringAnchored(data.Description, S/2, H+170, 0.5, 0.5)
+	dc.DrawStringAnchored(data.Price, S/2, H+400, 0.5, 0.5)
+
+	dc.Clip()
+	dc.SavePNG("./Output/" + data.imageName)
+
+	lock <- 1
+	log.Printf("Image/%v saved to Output/%v", data.imageName, data.imageName)
+	<-lock
+}
+
+var wg sync.WaitGroup
+
+var lock = make(chan int, 1)
 
 func main() {
 	defer func() {
@@ -62,31 +103,18 @@ func main() {
 	}
 	records := readCsv(csvFileName)
 	for _, record := range records {
-		fmt.Println(record)
+		fmt.Println(record.imageName)
 	}
-	// im, err := gg.LoadImage("./Images/2.jpg")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// b := im.Bounds()
 
-	// S := float64(b.Max.X)
-	// H := float64(b.Max.Y)
+	// creating output folder
+	newpath := filepath.Join(".", "Output")
+	os.MkdirAll(newpath, os.ModePerm)
 
-	// dc := gg.NewContext(int(S), int(H)+700)
-	// dc.SetRGB(1, 1, 1)
-	// dc.Clear()
-	// dc.SetRGB(0, 0, 0)
-	// if err := dc.LoadFontFace("./Fonts/Times New Roman.ttf", 180); err != nil {
-	// 	panic(err)
-	// }
-	// dc.DrawRoundedRectangle(0, 0, S, H, 0)
-	// dc.DrawImage(im, 0, 0)
-	// dc.DrawStringAnchored("Ref.2430  Dia. 3.43 ct, Ruby 2 ct", S/2, H+170, 0.5, 0.5)
-	// dc.DrawStringAnchored("13500 CHF", S/2, H+400, 0.5, 0.5)
-
-	// dc.Clip()
-	// dc.SavePNG("1.jpg")
+	for _, record := range records[1:] {
+		wg.Add(1)
+		go processImage(record)
+	}
+	wg.Wait()
 }
 
 func FindDir(dir string) string {
