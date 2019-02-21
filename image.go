@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bufio"
+	// "bufio"
 	"encoding/csv"
-	"fmt"
+	// "fmt"
 	"io"
 	"log"
 	"os"
@@ -48,12 +48,13 @@ func readCsv(fileName string) []record {
 
 func processImage(data record) {
 	defer wg.Done()
-	lock <- 1
+	// lock <- 1
 	log.Printf("Processing %v with description %v and price %v", data.imageName, data.Description, data.Price)
-	<-lock
+	// <-lock
 	im, err := gg.LoadImage("./Images/" + data.imageName)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 	b := im.Bounds()
 
@@ -75,9 +76,10 @@ func processImage(data record) {
 	dc.Clip()
 	dc.SavePNG("./Output/" + data.imageName)
 
-	lock <- 1
+	// lock <- 1
 	log.Printf("Image/%v saved to Output/%v", data.imageName, data.imageName)
-	<-lock
+	// <-lock
+
 }
 
 var wg sync.WaitGroup
@@ -87,24 +89,22 @@ var lock = make(chan int, 1)
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Fatalf("Error: %v", r)
+			log.Printf("Error: %v", r)
 		}
 	}()
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Please enter the name of the csv file: ")
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatal(err)
-	}
-	csvFileName := strings.TrimSpace(input)
+	// reader := bufio.NewReader(os.Stdin)
+	// fmt.Print("Please enter the name of the csv file: ")
+	// input, err := reader.ReadString('\n')
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// csvFileName := strings.TrimSpace(input)
+	csvFileName := "stock.csv"
 	ImageDirectory := FindDir("Images")
 	if !strings.Contains(ImageDirectory, "Images") {
 		log.Fatalf("Images folder not found! Please check it.")
 	}
 	records := readCsv(csvFileName)
-	for _, record := range records {
-		fmt.Println(record.imageName)
-	}
 
 	// creating output folder
 	newpath := filepath.Join(".", "Output")
