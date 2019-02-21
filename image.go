@@ -48,9 +48,9 @@ func readCsv(fileName string) []record {
 
 func processImage(data record) {
 	defer wg.Done()
-	// lock <- 1
+	lock <- 1
 	log.Printf("Processing %v with description %v and price %v", data.imageName, data.Description, data.Price)
-	// <-lock
+	<-lock
 	im, err := gg.LoadImage("./Images/" + data.imageName)
 	if err != nil {
 		log.Println(err)
@@ -76,17 +76,20 @@ func processImage(data record) {
 	dc.Clip()
 	dc.SavePNG("./Output/" + data.imageName)
 
-	// lock <- 1
+	lock <- 1
 	log.Printf("Image/%v saved to Output/%v", data.imageName, data.imageName)
-	// <-lock
+	<-lock
+	<-sem // removes an int from sem, allowing another to proceed
 
 }
 
 var wg sync.WaitGroup
 
 var lock = make(chan int, 1)
+var sem = make(chan int, 2)
 
 func main() {
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("Error: %v", r)
@@ -112,6 +115,7 @@ func main() {
 
 	for _, record := range records[1:] {
 		wg.Add(1)
+		sem <- 1 // will block if there is MAX ints in sem
 		go processImage(record)
 	}
 	wg.Wait()
