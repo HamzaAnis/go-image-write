@@ -1,9 +1,9 @@
 package main
 
 import (
-	// "bufio"
+	"bufio"
 	"encoding/csv"
-	// "fmt"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -19,7 +19,9 @@ type record struct {
 	Price       string
 	imageName   string
 }
-
+func (r *record) toString(imageDir string){
+	fmt.Printf("Processing\n\tFile name:   %v\n\tDescription: %v\n\tPrice:       %v\n",imageDir+r.imageName,r.Description,r.Price)
+}
 func readCsv(fileName string) []record {
 	records := make([]record, 0)
 	file, err := os.Open(fileName)
@@ -46,12 +48,12 @@ func readCsv(fileName string) []record {
 	return records
 }
 
-func processImage(data record) {
+func processImage(imageDir string,data record) {
 	defer wg.Done()
 	lock <- 1
-	log.Printf("Processing %v with description %v and price %v", data.imageName, data.Description, data.Price)
+	data.toString(imageDir)
 	<-lock
-	im, err := gg.LoadImage("./Images/" + data.imageName)
+	im, err := gg.LoadImage(imageDir + data.imageName)
 	if err != nil {
 		log.Println(err)
 		return
@@ -73,20 +75,22 @@ func processImage(data record) {
 	dc.DrawStringAnchored(data.Description, S/2, H+170, 0.5, 0.5)
 	dc.DrawStringAnchored(data.Price, S/2, H+400, 0.5, 0.5)
 
+	outputPath:=filepath.FromSlash(imageDir+"Output/"+data.imageName)
 	dc.Clip()
-	dc.SavePNG("./Output/" + data.imageName)
+	dc.SavePNG("Output/"+data.imageName)
 
 	lock <- 1
-	log.Printf("Image/%v saved to Output/%v", data.imageName, data.imageName)
+	fmt.Printf("%v saved to %v\n", data.imageName, outputPath)
 	<-lock
 	<-sem // removes an int from sem, allowing another to proceed
 
 }
 
 var wg sync.WaitGroup
-
+const MaxThreads=20
 var lock = make(chan int, 1)
-var sem = make(chan int, 2)
+// 20 threads at one time
+var sem = make(chan int, MaxThreads)
 
 func main() {
 
@@ -95,14 +99,13 @@ func main() {
 			log.Printf("Error: %v", r)
 		}
 	}()
-	// reader := bufio.NewReader(os.Stdin)
-	// fmt.Print("Please enter the name of the csv file: ")
-	// input, err := reader.ReadString('\n')
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// csvFileName := strings.TrimSpace(input)
-	csvFileName := "stock.csv"
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Please enter the name of the csv file: ")
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	csvFileName := strings.TrimSpace(input)
 	ImageDirectory := FindDir("Images")
 	if !strings.Contains(ImageDirectory, "Images") {
 		log.Fatalf("Images folder not found! Please check it.")
@@ -112,11 +115,12 @@ func main() {
 	// creating output folder
 	newpath := filepath.Join(".", "Output")
 	os.MkdirAll(newpath, os.ModePerm)
-
-	for _, record := range records[1:] {
+	
+	log.Printf("\nNumber of parallel processing of images = %v\n",MaxThreads)
+	for i:=1;i<len(records);i++{
 		wg.Add(1)
 		sem <- 1 // will block if there is MAX ints in sem
-		go processImage(record)
+		go processImage(ImageDirectory,records[i])
 	}
 	wg.Wait()
 }
@@ -134,5 +138,5 @@ func FindDir(dir string) string {
 		fileName, _ = filepath.Abs("../" + dir + "/")
 	}
 	// returning absolute file path
-	return fileName + "/"
+	return filepath.FromSlash(fileName + "/")
 }
